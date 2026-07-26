@@ -1,8 +1,10 @@
 import 'dart:convert';
-import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:pasteboard/pasteboard.dart';
 
 import '../models/backend_test_item.dart';
 
@@ -30,12 +32,14 @@ class RecordForm extends StatefulWidget {
 
 class _RecordFormState extends State<RecordForm> {
   final _formKey = GlobalKey<FormState>();
+  final _pasteFocusNode = FocusNode();
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _imageNameController;
   late String _status;
   Uint8List? _imageBytes;
   String? _imageMimeType;
+  ProductImageSize? _imageSize;
   bool _saving = false;
   String? _error;
 
@@ -59,6 +63,7 @@ class _RecordFormState extends State<RecordForm> {
 
   @override
   void dispose() {
+    _pasteFocusNode.dispose();
     _titleController.dispose();
     _descriptionController.dispose();
     _imageNameController.dispose();
@@ -80,24 +85,70 @@ class _RecordFormState extends State<RecordForm> {
         setState(() => _error = 'The selected image could not be read.');
         return;
       }
-      if (bytes.length > maxImageBytes) {
-        setState(() => _error = 'Choose an image smaller than 2 MB.');
-        return;
-      }
 
       final mimeType = _mimeTypeFromExtension(file.extension);
       if (mimeType == null) {
         setState(() => _error = 'Use PNG, JPEG, WebP, or GIF.');
         return;
       }
+      await _useImage(bytes, mimeType, file.name);
+    } catch (error) {
+      if (mounted) setState(() => _error = 'Image picker error: $error');
+    }
+  }
+
+  Future<void> _pasteImage() async {
+    if (_saving) return;
+    _pasteFocusNode.requestFocus();
+    try {
+      final bytes = await Pasteboard.image;
+      if (bytes == null || bytes.isEmpty) {
+        if (mounted) {
+          setState(() => _error =
+              'No image found in the clipboard. Copy an image, then try again.');
+        }
+        return;
+      }
+      final mimeType = _mimeTypeFromBytes(bytes);
+      if (mimeType == null) {
+        if (mounted) {
+          setState(() => _error = 'Paste a PNG, JPEG, WebP, or GIF image.');
+        }
+        return;
+      }
+      final extension = mimeType == 'image/jpeg'
+          ? 'jpg'
+          : mimeType.replaceFirst('image/', '');
+      await _useImage(
+        bytes,
+        mimeType,
+        'pasted-product-${DateTime.now().millisecondsSinceEpoch}.$extension',
+      );
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error =
+            'Clipboard access failed. Allow clipboard permission and try again.');
+      }
+    }
+  }
+
+  Future<void> _useImage(
+    Uint8List bytes,
+    String mimeType,
+    String name,
+  ) async {
+    try {
+      final size = await inspectSquareProductImage(bytes);
+      if (!mounted) return;
       setState(() {
         _imageBytes = bytes;
         _imageMimeType = mimeType;
-        _imageNameController.text = file.name;
+        _imageSize = size;
+        _imageNameController.text = name;
         _error = null;
       });
-    } catch (error) {
-      if (mounted) setState(() => _error = 'Image picker error: $error');
+    } on FormatException catch (error) {
+      if (mounted) setState(() => _error = error.message);
     }
   }
 
@@ -105,6 +156,7 @@ class _RecordFormState extends State<RecordForm> {
     setState(() {
       _imageBytes = null;
       _imageMimeType = null;
+      _imageSize = null;
       _imageNameController.clear();
     });
   }
@@ -134,6 +186,7 @@ class _RecordFormState extends State<RecordForm> {
           _status = statuses.first;
           _imageBytes = null;
           _imageMimeType = null;
+          _imageSize = null;
         });
       }
     } catch (error) {
@@ -199,11 +252,50 @@ class _RecordFormState extends State<RecordForm> {
                   },
           ),
           const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _saving ? null : _pickImage,
-            icon: const Icon(Icons.add_photo_alternate_outlined),
-            label: Text(
-              _imageBytes == null ? 'Choose product image' : 'Replace image',
+          CallbackShortcuts(
+            bindings: {
+              const SingleActivator(
+                LogicalKeyboardKey.keyV,
+                control: true,
+              ): _pasteImage,
+              const SingleActivator(
+                LogicalKeyboardKey.keyV,
+                meta: true,
+              ): _pasteImage,
+            },
+            child: Focus(
+              focusNode: _pasteFocusNode,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _saving ? null : _pickImage,
+                          icon: const Icon(Icons.add_photo_alternate_outlined),
+                          label: Text(
+                            _imageBytes == null ? 'Upload' : 'Replace',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _saving ? null : _pasteImage,
+                          icon: const Icon(Icons.content_paste_rounded),
+                          label: const Text('Paste'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    'Paste from clipboard · Ctrl/⌘V',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
             ),
           ),
           if (_imageBytes != null) ...[
@@ -214,12 +306,32 @@ class _RecordFormState extends State<RecordForm> {
                 height: 160,
                 child: Image.memory(
                   _imageBytes!,
-                  fit: BoxFit.cover,
+                  fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) =>
                       const Center(child: Text('Image preview unavailable')),
                 ),
               ),
             ),
+            if (_imageSize != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.check_circle_outline_rounded,
+                    size: 17,
+                    color: Color(0xFF4E7C60),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${_imageSize!.width}×${_imageSize!.height} · 1:1 square',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFF4E7C60),
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 12),
             TextFormField(
               controller: _imageNameController,
@@ -244,7 +356,7 @@ class _RecordFormState extends State<RecordForm> {
             ),
           ] else
             Text(
-              'Optional · PNG, JPEG, WebP, or GIF · maximum 2 MB',
+              'Square image required · 1080×1080 recommended · maximum 2 MB',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           if (_error != null) ...[
@@ -285,5 +397,65 @@ class _RecordFormState extends State<RecordForm> {
     if (data == null || !data.startsWith('data:image/')) return null;
     final end = data.indexOf(';base64,');
     return end < 5 ? null : data.substring(5, end);
+  }
+
+  static String? _mimeTypeFromBytes(Uint8List bytes) {
+    if (bytes.length >= 8 &&
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4E &&
+        bytes[3] == 0x47) {
+      return 'image/png';
+    }
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xFF &&
+        bytes[1] == 0xD8 &&
+        bytes[2] == 0xFF) {
+      return 'image/jpeg';
+    }
+    if (bytes.length >= 12 &&
+        String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF' &&
+        String.fromCharCodes(bytes.sublist(8, 12)) == 'WEBP') {
+      return 'image/webp';
+    }
+    if (bytes.length >= 6 &&
+        String.fromCharCodes(bytes.sublist(0, 3)) == 'GIF') {
+      return 'image/gif';
+    }
+    return null;
+  }
+}
+
+class ProductImageSize {
+  const ProductImageSize(this.width, this.height);
+
+  final int width;
+  final int height;
+}
+
+Future<ProductImageSize> inspectSquareProductImage(Uint8List bytes) async {
+  if (bytes.length > _RecordFormState.maxImageBytes) {
+    throw const FormatException('Choose an image smaller than 2 MB.');
+  }
+
+  ui.Codec? codec;
+  ui.Image? image;
+  try {
+    codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    image = frame.image;
+    if (image.width != image.height) {
+      throw FormatException(
+        'Use a square image (1:1). This image is '
+        '${image.width}×${image.height}.',
+      );
+    }
+    return ProductImageSize(image.width, image.height);
+  } catch (error) {
+    if (error is FormatException) rethrow;
+    throw const FormatException('The image could not be decoded.');
+  } finally {
+    image?.dispose();
+    codec?.dispose();
   }
 }
