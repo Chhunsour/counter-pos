@@ -1009,7 +1009,7 @@ class _ProductCatalog extends StatelessWidget {
               crossAxisCount: columns,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              mainAxisExtent: cardWidth + 106,
+              mainAxisExtent: cardWidth + 114,
             ),
             itemCount: visible.length,
             itemBuilder: (context, index) {
@@ -1067,7 +1067,7 @@ class _ProductTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+          padding: const EdgeInsets.all(8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -1105,85 +1105,21 @@ class _ProductTile extends StatelessWidget {
                         child: Center(
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 9,
-                              vertical: 5,
+                              horizontal: 12,
+                              vertical: 7,
                             ),
-                            color: _ink,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
                             child: Text(
-                              item.status == 'pending' ? 'DRAFT' : 'HIDDEN',
+                              item.status == 'pending' ? 'Draft' : 'Hidden',
                               style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.8,
+                                color: _ink,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
-                          ),
-                        ),
-                      ),
-                    Positioned(
-                      left: 10,
-                      top: 10,
-                      right: available ? 78 : 10,
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.92),
-                            borderRadius: BorderRadius.circular(7),
-                          ),
-                          child: Text(
-                            categoryName ?? 'Uncategorized',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: _ink,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (available)
-                      Positioned(
-                        top: 10,
-                        right: 10,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _ink.withValues(alpha: 0.88),
-                            borderRadius: BorderRadius.circular(7),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox.square(
-                                dimension: 6,
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: Color(0xFF8FD3A9),
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: 5),
-                              Text(
-                                'Ready',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
                           ),
                         ),
                       ),
@@ -1191,8 +1127,20 @@ class _ProductTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
+              Text(
+                categoryName ?? 'Uncategorized',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _muted,
+                  fontSize: 11,
+                  height: 1,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
               SizedBox(
-                height: 40,
+                height: 38,
                 child: Text(
                   item.title,
                   maxLines: 2,
@@ -1203,9 +1151,9 @@ class _ProductTile extends StatelessWidget {
                       ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
                     child: Column(
@@ -1238,16 +1186,31 @@ class _ProductTile extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    width: 38,
+                    width: 70,
                     height: 38,
+                    alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: available ? _accent : const Color(0xFFE6E2D9),
-                      borderRadius: BorderRadius.circular(11),
+                      color: available ? _ink : const Color(0xFFE6E2D9),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(
-                      Icons.add_rounded,
-                      size: 21,
-                      color: available ? Colors.white : _muted,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.add_rounded,
+                          size: 17,
+                          color: available ? Colors.white : _muted,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Add',
+                          style: TextStyle(
+                            color: available ? Colors.white : _muted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
