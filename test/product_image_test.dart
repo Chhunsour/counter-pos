@@ -5,22 +5,15 @@ import 'package:backend_test_dashboard/widgets/record_form.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('accepts square product images and rejects non-square images', () async {
+  test('accepts any image ratio for square card cropping', () async {
     final square = await _png(12, 12);
     final wide = await _png(12, 8);
 
-    final size = await inspectSquareProductImage(square);
-    expect((size.width, size.height), (12, 12));
-    await expectLater(
-      inspectSquareProductImage(wide),
-      throwsA(
-        isA<FormatException>().having(
-          (error) => error.message,
-          'message',
-          contains('1:1'),
-        ),
-      ),
-    );
+    final squareSize = await inspectProductImage(square);
+    final wideSize = await inspectProductImage(wide);
+
+    expect((squareSize.width, squareSize.height), (12, 12));
+    expect((wideSize.width, wideSize.height), (12, 8));
   });
 }
 

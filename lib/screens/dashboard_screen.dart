@@ -871,7 +871,7 @@ class _ProductCatalog extends StatelessWidget {
               crossAxisCount: columns,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: columns == 1 ? 1.8 : 0.78,
+              childAspectRatio: 0.72,
             ),
             itemCount: visible.length,
             itemBuilder: (context, index) {
@@ -918,7 +918,8 @@ class _ProductTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
+              AspectRatio(
+                aspectRatio: 1,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [

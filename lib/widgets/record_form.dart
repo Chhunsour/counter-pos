@@ -138,7 +138,7 @@ class _RecordFormState extends State<RecordForm> {
     String name,
   ) async {
     try {
-      final size = await inspectSquareProductImage(bytes);
+      final size = await inspectProductImage(bytes);
       if (!mounted) return;
       setState(() {
         _imageBytes = bytes;
@@ -303,12 +303,18 @@ class _RecordFormState extends State<RecordForm> {
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: SizedBox(
-                height: 160,
-                child: Image.memory(
-                  _imageBytes!,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) =>
-                      const Center(child: Text('Image preview unavailable')),
+                height: 180,
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: Image.memory(
+                      _imageBytes!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Text('Image preview unavailable'),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -323,7 +329,8 @@ class _RecordFormState extends State<RecordForm> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    '${_imageSize!.width}×${_imageSize!.height} · 1:1 square',
+                    '${_imageSize!.width}×${_imageSize!.height} original · '
+                    'card crops to 1:1',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: const Color(0xFF4E7C60),
                           fontWeight: FontWeight.w700,
@@ -356,7 +363,7 @@ class _RecordFormState extends State<RecordForm> {
             ),
           ] else
             Text(
-              'Square image required · 1080×1080 recommended · maximum 2 MB',
+              'Any image ratio · auto-cropped to square · maximum 2 MB',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           if (_error != null) ...[
@@ -433,7 +440,7 @@ class ProductImageSize {
   final int height;
 }
 
-Future<ProductImageSize> inspectSquareProductImage(Uint8List bytes) async {
+Future<ProductImageSize> inspectProductImage(Uint8List bytes) async {
   if (bytes.length > _RecordFormState.maxImageBytes) {
     throw const FormatException('Choose an image smaller than 2 MB.');
   }
@@ -444,12 +451,6 @@ Future<ProductImageSize> inspectSquareProductImage(Uint8List bytes) async {
     codec = await ui.instantiateImageCodec(bytes);
     final frame = await codec.getNextFrame();
     image = frame.image;
-    if (image.width != image.height) {
-      throw FormatException(
-        'Use a square image (1:1). This image is '
-        '${image.width}×${image.height}.',
-      );
-    }
     return ProductImageSize(image.width, image.height);
   } catch (error) {
     if (error is FormatException) rethrow;
