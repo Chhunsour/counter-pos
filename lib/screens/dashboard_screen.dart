@@ -1000,6 +1000,8 @@ class _ProductCatalog extends StatelessWidget {
                   : constraints.maxWidth >= 360
                       ? 2
                       : 1;
+          final cardWidth =
+              (constraints.maxWidth - (columns - 1) * 12) / columns;
           return GridView.builder(
             shrinkWrap: embedded,
             physics: embedded ? const NeverScrollableScrollPhysics() : null,
@@ -1007,7 +1009,7 @@ class _ProductCatalog extends StatelessWidget {
               crossAxisCount: columns,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 0.68,
+              mainAxisExtent: cardWidth + 84,
             ),
             itemCount: visible.length,
             itemBuilder: (context, index) {
@@ -1123,19 +1125,17 @@ class _ProductTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 11),
-              if (categoryName != null) ...[
-                Text(
-                  categoryName!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _muted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
+              Text(
+                categoryName ?? 'Uncategorized',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _muted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: 2),
-              ],
+              ),
+              const SizedBox(height: 2),
               Text(
                 item.title,
                 maxLines: 1,
