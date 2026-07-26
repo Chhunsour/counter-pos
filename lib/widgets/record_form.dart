@@ -291,7 +291,7 @@ class _RecordFormState extends State<RecordForm> {
                   ),
                   const SizedBox(height: 7),
                   Text(
-                    'Paste from clipboard · Ctrl/⌘V',
+                    'Clipboard: Ctrl+V / Cmd+V',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
