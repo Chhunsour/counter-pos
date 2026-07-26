@@ -43,15 +43,16 @@ class _RecordFormState extends State<RecordForm> {
   bool _saving = false;
   String? _error;
 
-  static const statuses = ['pending', 'active', 'inactive'];
+  static const statuses = ['active', 'pending', 'inactive'];
   static const maxImageBytes = 2 * 1024 * 1024;
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.initialItem?.title);
-    _descriptionController =
-        TextEditingController(text: widget.initialItem?.description);
+    _descriptionController = TextEditingController(
+      text: productDetailsForEditing(widget.initialItem?.description),
+    );
     _imageNameController =
         TextEditingController(text: widget.initialItem?.imageName);
     _imageBytes = widget.initialItem?.imageBytes;
@@ -170,7 +171,7 @@ class _RecordFormState extends State<RecordForm> {
     try {
       await widget.onSubmit(
         _titleController.text.trim(),
-        _descriptionController.text.trim(),
+        productDetailsForStorage(_descriptionController.text),
         _status,
         _imageBytes == null ? null : _imageNameController.text.trim(),
         _imageBytes == null
@@ -222,7 +223,8 @@ class _RecordFormState extends State<RecordForm> {
             enabled: !_saving,
             decoration: const InputDecoration(
               labelText: 'Price and details',
-              hintText: r'$4.50 · Iced · 16 oz',
+              prefixText: r'$ ',
+              hintText: '4.50 · Iced · 16 oz',
               helperText: 'Put the price first so the register can read it.',
             ),
             minLines: 2,
@@ -459,4 +461,14 @@ Future<ProductImageSize> inspectProductImage(Uint8List bytes) async {
     image?.dispose();
     codec?.dispose();
   }
+}
+
+String productDetailsForEditing(String? value) {
+  final details = (value ?? '').trim();
+  return details.startsWith(r'$') ? details.substring(1).trimLeft() : details;
+}
+
+String productDetailsForStorage(String value) {
+  final details = value.trim();
+  return details.startsWith(r'$') ? details : '\$$details';
 }

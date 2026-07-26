@@ -15,6 +15,12 @@ void main() {
     expect((squareSize.width, squareSize.height), (12, 12));
     expect((wideSize.width, wideSize.height), (12, 8));
   });
+
+  test('adds one dollar sign to stored product details', () {
+    expect(productDetailsForStorage('4.50 · Iced'), r'$4.50 · Iced');
+    expect(productDetailsForStorage(r'$4.50 · Iced'), r'$4.50 · Iced');
+    expect(productDetailsForEditing(r'$4.50 · Iced'), '4.50 · Iced');
+  });
 }
 
 Future<Uint8List> _png(int width, int height) async {
