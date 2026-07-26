@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../config/env_config.dart';
 import '../models/backend_test_item.dart';
+import '../models/pos_category.dart';
 
 enum ApiErrorType { network, timeout, authorization, api, json, server }
 
@@ -116,12 +117,46 @@ class BackendApiService {
     }
   }
 
+  Future<List<PosCategory>> fetchCategories() async {
+    final uri = config.categoriesUri.replace(
+      queryParameters: {'select': '*', 'order': 'name.asc'},
+    );
+    final response = await _request(() => _client.get(uri, headers: _headers));
+    _ensureSuccess(response, const {200});
+
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is! List) {
+        throw const FormatException('Expected a JSON array.');
+      }
+      return decoded
+          .map((value) => PosCategory.fromJson(
+                Map<String, dynamic>.from(value as Map),
+              ))
+          .toList();
+    } on FormatException catch (error) {
+      throw ApiException(
+        'Invalid category response: ${error.message}',
+        type: ApiErrorType.json,
+        statusCode: response.statusCode,
+      );
+    } on TypeError {
+      throw ApiException(
+        'Invalid category response: each category must be an object.',
+        type: ApiErrorType.json,
+        statusCode: response.statusCode,
+      );
+    }
+  }
+
   Future<void> createItem({
     required String title,
     required String description,
     required String status,
     required String? imageName,
     required String? imageData,
+    required String? barcode,
+    required Object? categoryId,
   }) async {
     final response = await _request(
       () => _client.post(
@@ -133,7 +168,20 @@ class BackendApiService {
           'status': status,
           'image_name': imageName,
           'image_data': imageData,
+          if (barcode != null) 'barcode': barcode,
+          if (categoryId != null) 'category_id': categoryId,
         }),
+      ),
+    );
+    _ensureSuccess(response, const {200, 201, 204});
+  }
+
+  Future<void> createCategory(String name) async {
+    final response = await _request(
+      () => _client.post(
+        config.categoriesUri,
+        headers: {..._headers, 'Prefer': 'return=minimal'},
+        body: jsonEncode({'name': name}),
       ),
     );
     _ensureSuccess(response, const {200, 201, 204});

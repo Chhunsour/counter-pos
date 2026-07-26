@@ -150,6 +150,15 @@ class _RecordCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(item.description),
+                if (item.barcode != null) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    'Barcode: ${item.barcode}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
                 if (item.imageName != null) ...[
                   const SizedBox(height: 6),
                   Text(

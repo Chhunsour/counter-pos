@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:backend_test_dashboard/widgets/record_form.dart';
@@ -20,6 +21,18 @@ void main() {
     expect(productDetailsForStorage('4.50 · Iced'), r'$4.50 · Iced');
     expect(productDetailsForStorage(r'$4.50 · Iced'), r'$4.50 · Iced');
     expect(productDetailsForEditing(r'$4.50 · Iced'), '4.50 · Iced');
+  });
+
+  test('generates a valid EAN-13 barcode', () {
+    final barcode = generateEan13(Random(7));
+    final digits = barcode.split('').map(int.parse).toList();
+    final weighted = List.generate(
+      12,
+      (index) => digits[index] * (index.isEven ? 1 : 3),
+    ).fold<int>(0, (sum, digit) => sum + digit);
+
+    expect(barcode, hasLength(13));
+    expect((weighted + digits.last) % 10, 0);
   });
 }
 

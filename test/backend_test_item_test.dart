@@ -11,6 +11,8 @@ void main() {
       'created_at': '2026-07-26T10:30:00Z',
       'image_name': 'coffee.png',
       'image_data': 'data:image/png;base64,aGVsbG8=',
+      'barcode': '2345678901234',
+      'category_id': 3,
     });
 
     expect(item.id, 7);
@@ -21,8 +23,12 @@ void main() {
       'status': 'active',
       'image_name': 'coffee.png',
       'image_data': 'data:image/png;base64,aGVsbG8=',
+      'barcode': '2345678901234',
+      'category_id': 3,
     });
     expect(item.imageName, 'coffee.png');
+    expect(item.barcode, '2345678901234');
+    expect(item.categoryId, 3);
     expect(item.imageBytes, [104, 101, 108, 108, 111]);
   });
 

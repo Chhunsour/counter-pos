@@ -46,6 +46,13 @@ This test stores the image in PostgreSQL because the custom backend does not yet
 provide object storage. For a production POS with many or large images, add an
 object-storage upload API and keep only its image URL in the table.
 
+## Enable barcodes and categories
+
+Run
+[`migrations/002_add_barcodes_and_categories.sql`](migrations/002_add_barcodes_and_categories.sql)
+in your backend SQL workspace. This adds optional product barcodes and the
+category table used by the Products and Register screens.
+
 ## Configure
 
 1. Install the [Flutter SDK](https://docs.flutter.dev/get-started/install) and

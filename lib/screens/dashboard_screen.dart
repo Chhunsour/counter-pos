@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../config/env_config.dart';
 import '../models/backend_test_item.dart';
+import '../models/pos_category.dart';
 import '../services/backend_api_service.dart';
 import '../widgets/connection_status_card.dart';
 import '../widgets/record_form.dart';
@@ -29,16 +30,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
   BackendApiService? _api;
   ConnectionResult? _connection;
   List<BackendTestItem> _items = const [];
+  List<PosCategory> _categories = const [];
   final Map<Object, int> _cart = {};
   final List<_Sale> _sales = [];
   bool _testing = false;
   bool _loading = false;
+  bool _categoriesLoading = false;
   String? _connectionError;
   int? _connectionErrorStatus;
   Duration? _connectionErrorElapsed;
   String? _recordsError;
+  String? _categoriesError;
   String _query = '';
   String _filter = 'all';
+  Object? _categoryFilter;
   String _paymentMethod = 'Card';
   int _section = 0;
 
@@ -68,7 +73,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _testAndLoad() async {
     await _testConnection();
-    if (_connection != null) await _loadRecords();
+    if (_connection != null) {
+      await Future.wait([_loadRecords(), _loadCategories()]);
+    }
   }
 
   Future<void> _testConnection() async {
@@ -123,12 +130,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Future<void> _loadCategories() async {
+    final api = _api;
+    if (api == null) return;
+    setState(() {
+      _categoriesLoading = true;
+      _categoriesError = null;
+    });
+    try {
+      final categories = await api.fetchCategories();
+      if (mounted) setState(() => _categories = categories);
+    } catch (error) {
+      if (mounted) setState(() => _categoriesError = error.toString());
+    } finally {
+      if (mounted) setState(() => _categoriesLoading = false);
+    }
+  }
+
   Future<void> _create(
     String title,
     String description,
     String status,
     String? imageName,
     String? imageData,
+    String? barcode,
+    Object? categoryId,
   ) async {
     await _api!.createItem(
       title: title,
@@ -136,6 +162,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       status: status,
       imageName: imageName,
       imageData: imageData,
+      barcode: barcode,
+      categoryId: categoryId,
     );
     await _loadRecords();
     _showSuccess('$title was added to the catalog.');
@@ -148,6 +176,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     String status,
     String? imageName,
     String? imageData,
+    String? barcode,
+    Object? categoryId,
   ) async {
     await _api!.updateItem(
       item.copyWith(
@@ -156,10 +186,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
         status: status,
         imageName: imageName,
         imageData: imageData,
+        barcode: barcode,
+        categoryId: categoryId,
       ),
     );
     await _loadRecords();
     _showSuccess('$title was updated.');
+  }
+
+  Future<void> _createCategory(String name) async {
+    try {
+      await _api!.createCategory(name);
+      await _loadCategories();
+      _showSuccess('$name was added to categories.');
+    } catch (error) {
+      if (mounted) _showError(error.toString());
+      rethrow;
+    }
   }
 
   Future<void> _delete(BackendTestItem item) async {
@@ -201,12 +244,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: SingleChildScrollView(
             child: RecordForm(
               initialItem: item,
+              categories: _categories,
               onSubmit: (
                 title,
                 description,
                 status,
                 imageName,
                 imageData,
+                barcode,
+                categoryId,
               ) async {
                 await _update(
                   item,
@@ -215,6 +261,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   status,
                   imageName,
                   imageData,
+                  barcode,
+                  categoryId,
                 );
                 if (dialogContext.mounted) Navigator.pop(dialogContext);
               },
@@ -368,16 +416,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: switch (_section) {
                       0 => _RegisterView(
                           items: _items,
+                          categories: _categories,
                           loading: _loading,
                           error: configError ?? _recordsError,
                           query: _query,
                           filter: _filter,
+                          categoryFilter: _categoryFilter,
                           cart: _cart,
                           paymentMethod: _paymentMethod,
                           onQueryChanged: (value) =>
                               setState(() => _query = value),
                           onFilterChanged: (value) =>
                               setState(() => _filter = value),
+                          onCategoryChanged: (value) =>
+                              setState(() => _categoryFilter = value),
                           onAdd: _addToCart,
                           onQuantityChanged: _changeQuantity,
                           onClear: () => setState(_cart.clear),
@@ -391,9 +443,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       2 => _ProductsView(
                           apiEnabled: _api != null,
                           items: _items,
+                          categories: _categories,
+                          categoriesLoading: _categoriesLoading,
+                          categoriesError: _categoriesError,
                           loading: _loading,
                           error: configError ?? _recordsError,
                           onCreate: _create,
+                          onCreateCategory: _createCategory,
+                          onRefreshCategories:
+                              _api == null ? null : _loadCategories,
                           onRefresh: _api == null ? null : _loadRecords,
                           onEdit: _showEdit,
                           onDelete: _delete,
@@ -629,14 +687,17 @@ class _DesktopTopBar extends StatelessWidget {
 class _RegisterView extends StatelessWidget {
   const _RegisterView({
     required this.items,
+    required this.categories,
     required this.loading,
     required this.error,
     required this.query,
     required this.filter,
+    required this.categoryFilter,
     required this.cart,
     required this.paymentMethod,
     required this.onQueryChanged,
     required this.onFilterChanged,
+    required this.onCategoryChanged,
     required this.onAdd,
     required this.onQuantityChanged,
     required this.onClear,
@@ -647,14 +708,17 @@ class _RegisterView extends StatelessWidget {
   });
 
   final List<BackendTestItem> items;
+  final List<PosCategory> categories;
   final bool loading;
   final String? error;
   final String query;
   final String filter;
+  final Object? categoryFilter;
   final Map<Object, int> cart;
   final String paymentMethod;
   final ValueChanged<String> onQueryChanged;
   final ValueChanged<String> onFilterChanged;
+  final ValueChanged<Object?> onCategoryChanged;
   final ValueChanged<BackendTestItem> onAdd;
   final void Function(Object id, int change) onQuantityChanged;
   final VoidCallback onClear;
@@ -672,13 +736,16 @@ class _RegisterView extends StatelessWidget {
           final split = constraints.maxWidth >= 900;
           final catalog = _ProductCatalog(
             items: items,
+            categories: categories,
             loading: loading,
             error: error,
             query: query,
             filter: filter,
+            categoryFilter: categoryFilter,
             embedded: !split,
             onQueryChanged: onQueryChanged,
             onFilterChanged: onFilterChanged,
+            onCategoryChanged: onCategoryChanged,
             onAdd: onAdd,
             onRefresh: onRefresh,
             onManageProducts: onManageProducts,
@@ -721,26 +788,32 @@ class _RegisterView extends StatelessWidget {
 class _ProductCatalog extends StatelessWidget {
   const _ProductCatalog({
     required this.items,
+    required this.categories,
     required this.loading,
     required this.error,
     required this.query,
     required this.filter,
+    required this.categoryFilter,
     required this.embedded,
     required this.onQueryChanged,
     required this.onFilterChanged,
+    required this.onCategoryChanged,
     required this.onAdd,
     required this.onRefresh,
     required this.onManageProducts,
   });
 
   final List<BackendTestItem> items;
+  final List<PosCategory> categories;
   final bool loading;
   final String? error;
   final String query;
   final String filter;
+  final Object? categoryFilter;
   final bool embedded;
   final ValueChanged<String> onQueryChanged;
   final ValueChanged<String> onFilterChanged;
+  final ValueChanged<Object?> onCategoryChanged;
   final ValueChanged<BackendTestItem> onAdd;
   final VoidCallback? onRefresh;
   final VoidCallback onManageProducts;
@@ -751,9 +824,12 @@ class _ProductCatalog extends StatelessWidget {
     final visible = items.where((item) {
       final matchesQuery = normalizedQuery.isEmpty ||
           item.title.toLowerCase().contains(normalizedQuery) ||
-          item.description.toLowerCase().contains(normalizedQuery);
+          item.description.toLowerCase().contains(normalizedQuery) ||
+          (item.barcode?.contains(normalizedQuery) ?? false);
       final matchesFilter = filter == 'all' || item.status == filter;
-      return matchesQuery && matchesFilter;
+      final matchesCategory =
+          categoryFilter == null || item.categoryId == categoryFilter;
+      return matchesQuery && matchesFilter && matchesCategory;
     }).toList();
 
     final header = Column(
@@ -825,6 +901,28 @@ class _ProductCatalog extends StatelessWidget {
             ],
           ),
         ),
+        if (categories.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _FilterButton(
+                  label: 'All categories',
+                  selected: categoryFilter == null,
+                  onTap: () => onCategoryChanged(null),
+                ),
+                ...categories.map(
+                  (category) => _FilterButton(
+                    label: category.name,
+                    selected: categoryFilter == category.id,
+                    onTap: () => onCategoryChanged(category.id),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 18),
       ],
     );
@@ -871,13 +969,17 @@ class _ProductCatalog extends StatelessWidget {
               crossAxisCount: columns,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 0.72,
+              childAspectRatio: 0.68,
             ),
             itemCount: visible.length,
             itemBuilder: (context, index) {
               final item = visible[index];
               return _ProductTile(
                 item: item,
+                categoryName: categories
+                    .where((category) => category.id == item.categoryId)
+                    .firstOrNull
+                    ?.name,
                 onTap: item.status == 'active' ? () => onAdd(item) : null,
               );
             },
@@ -900,9 +1002,14 @@ class _ProductCatalog extends StatelessWidget {
 }
 
 class _ProductTile extends StatelessWidget {
-  const _ProductTile({required this.item, required this.onTap});
+  const _ProductTile({
+    required this.item,
+    required this.categoryName,
+    required this.onTap,
+  });
 
   final BackendTestItem item;
+  final String? categoryName;
   final VoidCallback? onTap;
 
   @override
@@ -972,6 +1079,19 @@ class _ProductTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 11),
+              if (categoryName != null) ...[
+                Text(
+                  categoryName!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _muted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+              ],
               Text(
                 item.title,
                 maxLines: 1,
@@ -1230,9 +1350,14 @@ class _ProductsView extends StatelessWidget {
   const _ProductsView({
     required this.apiEnabled,
     required this.items,
+    required this.categories,
+    required this.categoriesLoading,
+    required this.categoriesError,
     required this.loading,
     required this.error,
     required this.onCreate,
+    required this.onCreateCategory,
+    required this.onRefreshCategories,
     required this.onRefresh,
     required this.onEdit,
     required this.onDelete,
@@ -1240,9 +1365,14 @@ class _ProductsView extends StatelessWidget {
 
   final bool apiEnabled;
   final List<BackendTestItem> items;
+  final List<PosCategory> categories;
+  final bool categoriesLoading;
+  final String? categoriesError;
   final bool loading;
   final String? error;
   final RecordSubmit onCreate;
+  final Future<void> Function(String name) onCreateCategory;
+  final VoidCallback? onRefreshCategories;
   final VoidCallback? onRefresh;
   final ValueChanged<BackendTestItem> onEdit;
   final ValueChanged<BackendTestItem> onDelete;
@@ -1260,6 +1390,15 @@ class _ProductsView extends StatelessWidget {
                 'Add products here, then mark them available to sell at the register.',
           ),
           const SizedBox(height: 20),
+          _CategoryManager(
+            categories: categories,
+            loading: categoriesLoading,
+            error: categoriesError,
+            enabled: apiEnabled,
+            onCreate: onCreateCategory,
+            onRefresh: onRefreshCategories,
+          ),
+          const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
               final form = Card(
@@ -1278,7 +1417,10 @@ class _ProductsView extends StatelessWidget {
                           'Configure the backend in .env to add products.',
                         )
                       else
-                        RecordForm(onSubmit: onCreate),
+                        RecordForm(
+                          categories: categories,
+                          onSubmit: onCreate,
+                        ),
                     ],
                   ),
                 ),
@@ -1307,6 +1449,142 @@ class _ProductsView extends StatelessWidget {
             },
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CategoryManager extends StatefulWidget {
+  const _CategoryManager({
+    required this.categories,
+    required this.loading,
+    required this.error,
+    required this.enabled,
+    required this.onCreate,
+    required this.onRefresh,
+  });
+
+  final List<PosCategory> categories;
+  final bool loading;
+  final String? error;
+  final bool enabled;
+  final Future<void> Function(String name) onCreate;
+  final VoidCallback? onRefresh;
+
+  @override
+  State<_CategoryManager> createState() => _CategoryManagerState();
+}
+
+class _CategoryManagerState extends State<_CategoryManager> {
+  final _controller = TextEditingController();
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _create() async {
+    final name = _controller.text.trim();
+    if (name.isEmpty || _saving) return;
+    setState(() => _saving = true);
+    try {
+      await widget.onCreate(name);
+      _controller.clear();
+    } catch (_) {
+      // The dashboard already shows the backend error.
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Categories',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Refresh categories',
+                  onPressed: widget.loading ? null : widget.onRefresh,
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            const Text(
+              'Create categories here before assigning them to products.',
+              style: TextStyle(color: _muted),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    enabled: widget.enabled && !_saving,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _create(),
+                    decoration: const InputDecoration(
+                      labelText: 'Category name',
+                      hintText: 'Example: Drinks',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                FilledButton.icon(
+                  onPressed: widget.enabled && !_saving ? _create : null,
+                  icon: _saving
+                      ? const SizedBox.square(
+                          dimension: 17,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.add_rounded),
+                  label: const Text('Create'),
+                ),
+              ],
+            ),
+            if (widget.error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Run migrations/002_add_barcodes_and_categories.sql first.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+            if (widget.categories.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: widget.categories
+                    .map(
+                      (category) => Chip(
+                        avatar: const Icon(
+                          Icons.sell_outlined,
+                          size: 17,
+                        ),
+                        label: Text(category.name),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

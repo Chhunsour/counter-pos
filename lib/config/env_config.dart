@@ -36,6 +36,7 @@ class EnvConfig {
   }
 
   Uri get recordsUri => Uri.parse('$backendUri/rest/v1/backend_test_items');
+  Uri get categoriesUri => Uri.parse('$backendUri/rest/v1/pos_categories');
 
   String get maskedKey {
     if (anonKey.length < 8) return '••••';

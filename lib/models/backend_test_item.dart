@@ -10,6 +10,8 @@ class BackendTestItem {
     required this.createdAt,
     this.imageName,
     this.imageData,
+    this.barcode,
+    this.categoryId,
   });
 
   final Object id;
@@ -19,6 +21,8 @@ class BackendTestItem {
   final DateTime createdAt;
   final String? imageName;
   final String? imageData;
+  final String? barcode;
+  final Object? categoryId;
 
   factory BackendTestItem.fromJson(Map<String, dynamic> json) {
     final id = json['id'];
@@ -28,6 +32,8 @@ class BackendTestItem {
     final createdAt = json['created_at'];
     final imageName = json['image_name'];
     final imageData = json['image_data'];
+    final barcode = json['barcode'];
+    final categoryId = json['category_id'];
 
     if (id == null ||
         title is! String ||
@@ -35,7 +41,8 @@ class BackendTestItem {
         status is! String ||
         createdAt is! String ||
         (imageName != null && imageName is! String) ||
-        (imageData != null && imageData is! String)) {
+        (imageData != null && imageData is! String) ||
+        (barcode != null && barcode is! String)) {
       throw const FormatException(
         'A record has missing or invalid fields.',
       );
@@ -49,6 +56,8 @@ class BackendTestItem {
       createdAt: DateTime.parse(createdAt),
       imageName: imageName as String?,
       imageData: imageData as String?,
+      barcode: barcode as String?,
+      categoryId: categoryId,
     );
   }
 
@@ -58,6 +67,8 @@ class BackendTestItem {
         'status': status,
         'image_name': imageName,
         'image_data': imageData,
+        'barcode': barcode,
+        'category_id': categoryId,
       };
 
   BackendTestItem copyWith({
@@ -66,6 +77,8 @@ class BackendTestItem {
     required String status,
     required String? imageName,
     required String? imageData,
+    required String? barcode,
+    required Object? categoryId,
   }) {
     return BackendTestItem(
       id: id,
@@ -75,6 +88,8 @@ class BackendTestItem {
       createdAt: createdAt,
       imageName: imageName,
       imageData: imageData,
+      barcode: barcode,
+      categoryId: categoryId,
     );
   }
 

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
@@ -7,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:pasteboard/pasteboard.dart';
 
 import '../models/backend_test_item.dart';
+import '../models/pos_category.dart';
 
 typedef RecordSubmit = Future<void> Function(
   String title,
@@ -14,17 +16,21 @@ typedef RecordSubmit = Future<void> Function(
   String status,
   String? imageName,
   String? imageData,
+  String? barcode,
+  Object? categoryId,
 );
 
 class RecordForm extends StatefulWidget {
   const RecordForm({
     required this.onSubmit,
     this.initialItem,
+    this.categories = const [],
     super.key,
   });
 
   final RecordSubmit onSubmit;
   final BackendTestItem? initialItem;
+  final List<PosCategory> categories;
 
   @override
   State<RecordForm> createState() => _RecordFormState();
@@ -36,7 +42,9 @@ class _RecordFormState extends State<RecordForm> {
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _imageNameController;
+  late final TextEditingController _barcodeController;
   late String _status;
+  Object? _categoryId;
   Uint8List? _imageBytes;
   String? _imageMimeType;
   ProductImageSize? _imageSize;
@@ -55,6 +63,9 @@ class _RecordFormState extends State<RecordForm> {
     );
     _imageNameController =
         TextEditingController(text: widget.initialItem?.imageName);
+    _barcodeController =
+        TextEditingController(text: widget.initialItem?.barcode);
+    _categoryId = widget.initialItem?.categoryId;
     _imageBytes = widget.initialItem?.imageBytes;
     _imageMimeType = _mimeTypeFromData(widget.initialItem?.imageData);
     final initialStatus = widget.initialItem?.status;
@@ -68,6 +79,7 @@ class _RecordFormState extends State<RecordForm> {
     _titleController.dispose();
     _descriptionController.dispose();
     _imageNameController.dispose();
+    _barcodeController.dispose();
     super.dispose();
   }
 
@@ -177,14 +189,20 @@ class _RecordFormState extends State<RecordForm> {
         _imageBytes == null
             ? null
             : 'data:$_imageMimeType;base64,${base64Encode(_imageBytes!)}',
+        _barcodeController.text.trim().isEmpty
+            ? null
+            : _barcodeController.text.trim(),
+        _categoryId,
       );
       if (mounted && widget.initialItem == null) {
         _formKey.currentState!.reset();
         _titleController.clear();
         _descriptionController.clear();
         _imageNameController.clear();
+        _barcodeController.clear();
         setState(() {
           _status = statuses.first;
+          _categoryId = null;
           _imageBytes = null;
           _imageMimeType = null;
           _imageSize = null;
@@ -252,6 +270,54 @@ class _RecordFormState extends State<RecordForm> {
                 : (value) {
                     if (value != null) setState(() => _status = value);
                   },
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _barcodeController,
+            enabled: !_saving,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: InputDecoration(
+              labelText: 'Barcode',
+              hintText: 'Optional',
+              suffixIcon: TextButton(
+                onPressed: _saving
+                    ? null
+                    : () => _barcodeController.text = generateEan13(),
+                child: const Text('Auto generate'),
+              ),
+            ),
+            validator: (value) {
+              final barcode = value?.trim() ?? '';
+              if (barcode.isEmpty) return null;
+              return barcode.length < 8 || barcode.length > 14
+                  ? 'Use 8 to 14 digits.'
+                  : null;
+            },
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<Object>(
+            initialValue: widget.categories.any(
+              (category) => category.id == _categoryId,
+            )
+                ? _categoryId
+                : null,
+            decoration: InputDecoration(
+              labelText: 'Category',
+              hintText: widget.categories.isEmpty
+                  ? 'Create a category first'
+                  : 'No category',
+            ),
+            items: widget.categories
+                .map(
+                  (category) => DropdownMenuItem<Object>(
+                    value: category.id,
+                    child: Text(category.name),
+                  ),
+                )
+                .toList(),
+            onChanged:
+                _saving ? null : (value) => setState(() => _categoryId = value),
           ),
           const SizedBox(height: 12),
           CallbackShortcuts(
@@ -471,4 +537,15 @@ String productDetailsForEditing(String? value) {
 String productDetailsForStorage(String value) {
   final details = value.trim();
   return details.startsWith(r'$') ? details : '\$$details';
+}
+
+String generateEan13([Random? random]) {
+  final source = random ?? Random.secure();
+  final base = '2${List.generate(11, (_) => source.nextInt(10)).join()}';
+  var sum = 0;
+  for (var index = 0; index < base.length; index++) {
+    final digit = int.parse(base[index]);
+    sum += index.isEven ? digit : digit * 3;
+  }
+  return '$base${(10 - sum % 10) % 10}';
 }

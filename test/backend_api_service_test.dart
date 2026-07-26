@@ -38,7 +38,7 @@ void main() {
     service.close();
   });
 
-  test('sends the product image name and data', () async {
+  test('sends product image, barcode, and category data', () async {
     final service = BackendApiService(
       config,
       client: MockClient((request) async {
@@ -48,6 +48,8 @@ void main() {
           'status': 'active',
           'image_name': 'coffee.png',
           'image_data': 'data:image/png;base64,aGVsbG8=',
+          'barcode': '2345678901234',
+          'category_id': 3,
         });
         return http.Response('', 201);
       }),
@@ -59,6 +61,8 @@ void main() {
       status: 'active',
       imageName: 'coffee.png',
       imageData: 'data:image/png;base64,aGVsbG8=',
+      barcode: '2345678901234',
+      categoryId: 3,
     );
     service.close();
   });
