@@ -1009,7 +1009,7 @@ class _ProductCatalog extends StatelessWidget {
               crossAxisCount: columns,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              mainAxisExtent: cardWidth + 84,
+              mainAxisExtent: cardWidth + 106,
             ),
             itemCount: visible.length,
             itemBuilder: (context, index) {
@@ -1067,7 +1067,7 @@ class _ProductTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -1077,7 +1077,7 @@ class _ProductTile extends StatelessWidget {
                   fit: StackFit.expand,
                   children: [
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(14),
                       child: ColoredBox(
                         color: const Color(0xFFE9E6DF),
                         child: imageBytes == null
@@ -1100,7 +1100,7 @@ class _ProductTile extends StatelessWidget {
                       DecoratedBox(
                         decoration: BoxDecoration(
                           color: _ink.withValues(alpha: 0.58),
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                         child: Center(
                           child: Container(
@@ -1121,55 +1121,132 @@ class _ProductTile extends StatelessWidget {
                           ),
                         ),
                       ),
+                    Positioned(
+                      left: 10,
+                      top: 10,
+                      right: available ? 78 : 10,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.92),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Text(
+                            categoryName ?? 'Uncategorized',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: _ink,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (available)
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _ink.withValues(alpha: 0.88),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox.square(
+                                dimension: 6,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: Color(0xFF8FD3A9),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 5),
+                              Text(
+                                'Ready',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-              const SizedBox(height: 11),
-              Text(
-                categoryName ?? 'Uncategorized',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: _muted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 40,
+                child: Text(
+                  item.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        height: 1.2,
+                        fontWeight: FontWeight.w700,
+                      ),
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                item.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 8),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
-                    child: Text(
-                      formatDualCurrency(
-                        item.productPrice,
-                        usdToKhrRate,
-                        showRiel: showRiel,
-                      ),
-                      style: const TextStyle(
-                        color: _accent,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          formatUsd(item.productPrice),
+                          style: const TextStyle(
+                            color: _accent,
+                            fontSize: 17,
+                            height: 1,
+                            fontWeight: FontWeight.w800,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          showRiel
+                              ? formatRiel(item.productPrice, usdToKhrRate)
+                              : 'USD',
+                          style: const TextStyle(
+                            color: _muted,
+                            fontSize: 11,
+                            height: 1,
+                            fontWeight: FontWeight.w600,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   Container(
-                    width: 29,
-                    height: 29,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
-                      color: available ? _ink : const Color(0xFFE6E2D9),
-                      borderRadius: BorderRadius.circular(8),
+                      color: available ? _accent : const Color(0xFFE6E2D9),
+                      borderRadius: BorderRadius.circular(11),
                     ),
                     child: Icon(
                       Icons.add_rounded,
-                      size: 18,
+                      size: 21,
                       color: available ? Colors.white : _muted,
                     ),
                   ),
