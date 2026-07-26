@@ -4,6 +4,7 @@ import '../config/env_config.dart';
 import '../models/backend_test_item.dart';
 import '../models/pos_category.dart';
 import '../services/backend_api_service.dart';
+import '../utils/currency.dart';
 import '../widgets/connection_status_card.dart';
 import '../widgets/record_form.dart';
 import '../widgets/records_list.dart';
@@ -45,6 +46,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _filter = 'all';
   Object? _categoryFilter;
   String _paymentMethod = 'Card';
+  bool _showRiel = true;
+  double _usdToKhrRate = defaultUsdToKhrRate;
   int _section = 0;
 
   static const _sections = [
@@ -316,7 +319,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
       _cart.clear();
     });
-    _showSuccess('Payment recorded · \$${total.toStringAsFixed(2)}');
+    _showSuccess(
+      'Payment recorded · '
+      '${formatDualCurrency(total, _usdToKhrRate, showRiel: _showRiel)}',
+    );
   }
 
   void _showSuccess(String message) {
@@ -424,6 +430,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           categoryFilter: _categoryFilter,
                           cart: _cart,
                           paymentMethod: _paymentMethod,
+                          showRiel: _showRiel,
+                          usdToKhrRate: _usdToKhrRate,
                           onQueryChanged: (value) =>
                               setState(() => _query = value),
                           onFilterChanged: (value) =>
@@ -439,7 +447,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           onRefresh: _api == null ? null : _loadRecords,
                           onManageProducts: () => setState(() => _section = 2),
                         ),
-                      1 => _OrdersView(sales: _sales),
+                      1 => _OrdersView(
+                          sales: _sales,
+                          showRiel: _showRiel,
+                          usdToKhrRate: _usdToKhrRate,
+                        ),
                       2 => _ProductsView(
                           apiEnabled: _api != null,
                           items: _items,
@@ -464,7 +476,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               'Customer profiles will appear here after you add '
                               'a customer table in your migration.',
                         ),
-                      4 => _ReportsView(sales: _sales),
+                      4 => _ReportsView(
+                          sales: _sales,
+                          showRiel: _showRiel,
+                          usdToKhrRate: _usdToKhrRate,
+                        ),
                       _ => _SettingsView(
                           backendUrl: backendUrl,
                           testing: _testing,
@@ -473,6 +489,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           errorStatusCode: _connectionErrorStatus,
                           errorElapsed: _connectionErrorElapsed,
                           onTest: _api == null ? null : _testConnection,
+                          showRiel: _showRiel,
+                          usdToKhrRate: _usdToKhrRate,
+                          onShowRielChanged: (value) =>
+                              setState(() => _showRiel = value),
+                          onRateChanged: (value) {
+                            final rate = double.tryParse(value);
+                            if (rate != null && rate > 0) {
+                              setState(() => _usdToKhrRate = rate);
+                            }
+                          },
                         ),
                     },
                   ),
@@ -695,6 +721,8 @@ class _RegisterView extends StatelessWidget {
     required this.categoryFilter,
     required this.cart,
     required this.paymentMethod,
+    required this.showRiel,
+    required this.usdToKhrRate,
     required this.onQueryChanged,
     required this.onFilterChanged,
     required this.onCategoryChanged,
@@ -716,6 +744,8 @@ class _RegisterView extends StatelessWidget {
   final Object? categoryFilter;
   final Map<Object, int> cart;
   final String paymentMethod;
+  final bool showRiel;
+  final double usdToKhrRate;
   final ValueChanged<String> onQueryChanged;
   final ValueChanged<String> onFilterChanged;
   final ValueChanged<Object?> onCategoryChanged;
@@ -742,6 +772,8 @@ class _RegisterView extends StatelessWidget {
             query: query,
             filter: filter,
             categoryFilter: categoryFilter,
+            showRiel: showRiel,
+            usdToKhrRate: usdToKhrRate,
             embedded: !split,
             onQueryChanged: onQueryChanged,
             onFilterChanged: onFilterChanged,
@@ -754,6 +786,8 @@ class _RegisterView extends StatelessWidget {
             items: items,
             cart: cart,
             paymentMethod: paymentMethod,
+            showRiel: showRiel,
+            usdToKhrRate: usdToKhrRate,
             onQuantityChanged: onQuantityChanged,
             onClear: onClear,
             onPaymentChanged: onPaymentChanged,
@@ -794,6 +828,8 @@ class _ProductCatalog extends StatelessWidget {
     required this.query,
     required this.filter,
     required this.categoryFilter,
+    required this.showRiel,
+    required this.usdToKhrRate,
     required this.embedded,
     required this.onQueryChanged,
     required this.onFilterChanged,
@@ -810,6 +846,8 @@ class _ProductCatalog extends StatelessWidget {
   final String query;
   final String filter;
   final Object? categoryFilter;
+  final bool showRiel;
+  final double usdToKhrRate;
   final bool embedded;
   final ValueChanged<String> onQueryChanged;
   final ValueChanged<String> onFilterChanged;
@@ -976,6 +1014,8 @@ class _ProductCatalog extends StatelessWidget {
               final item = visible[index];
               return _ProductTile(
                 item: item,
+                showRiel: showRiel,
+                usdToKhrRate: usdToKhrRate,
                 categoryName: categories
                     .where((category) => category.id == item.categoryId)
                     .firstOrNull
@@ -1005,11 +1045,15 @@ class _ProductTile extends StatelessWidget {
   const _ProductTile({
     required this.item,
     required this.categoryName,
+    required this.showRiel,
+    required this.usdToKhrRate,
     required this.onTap,
   });
 
   final BackendTestItem item;
   final String? categoryName;
+  final bool showRiel;
+  final double usdToKhrRate;
   final VoidCallback? onTap;
 
   @override
@@ -1103,10 +1147,14 @@ class _ProductTile extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      '\$${item.productPrice.toStringAsFixed(2)}',
+                      formatDualCurrency(
+                        item.productPrice,
+                        usdToKhrRate,
+                        showRiel: showRiel,
+                      ),
                       style: const TextStyle(
                         color: _accent,
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w800,
                         fontFeatures: [FontFeature.tabularFigures()],
                       ),
@@ -1140,6 +1188,8 @@ class _TicketPanel extends StatelessWidget {
     required this.items,
     required this.cart,
     required this.paymentMethod,
+    required this.showRiel,
+    required this.usdToKhrRate,
     required this.onQuantityChanged,
     required this.onClear,
     required this.onPaymentChanged,
@@ -1150,6 +1200,8 @@ class _TicketPanel extends StatelessWidget {
   final List<BackendTestItem> items;
   final Map<Object, int> cart;
   final String paymentMethod;
+  final bool showRiel;
+  final double usdToKhrRate;
   final void Function(Object id, int change) onQuantityChanged;
   final VoidCallback onClear;
   final ValueChanged<String> onPaymentChanged;
@@ -1217,6 +1269,8 @@ class _TicketPanel extends StatelessWidget {
                           return _TicketLine(
                             item: line.item,
                             quantity: line.quantity,
+                            showRiel: showRiel,
+                            usdToKhrRate: usdToKhrRate,
                             onDecrease: () =>
                                 onQuantityChanged(line.item.id, -1),
                             onIncrease: () =>
@@ -1226,11 +1280,27 @@ class _TicketPanel extends StatelessWidget {
                       ),
               ),
               const Divider(height: 24),
-              _AmountRow(label: 'Subtotal', value: subtotal),
+              _AmountRow(
+                label: 'Subtotal',
+                value: subtotal,
+                showRiel: showRiel,
+                usdToKhrRate: usdToKhrRate,
+              ),
               const SizedBox(height: 8),
-              const _AmountRow(label: 'Tax', value: 0),
+              _AmountRow(
+                label: 'Tax',
+                value: 0,
+                showRiel: showRiel,
+                usdToKhrRate: usdToKhrRate,
+              ),
               const SizedBox(height: 10),
-              _AmountRow(label: 'Total', value: subtotal, total: true),
+              _AmountRow(
+                label: 'Total',
+                value: subtotal,
+                showRiel: showRiel,
+                usdToKhrRate: usdToKhrRate,
+                total: true,
+              ),
               const SizedBox(height: 15),
               SegmentedButton<String>(
                 segments: const [
@@ -1265,7 +1335,13 @@ class _TicketPanel extends StatelessWidget {
                   children: [
                     const Icon(Icons.lock_outline_rounded, size: 18),
                     const SizedBox(width: 8),
-                    Text('Charge \$${subtotal.toStringAsFixed(2)}'),
+                    Text(
+                      'Charge ${formatDualCurrency(
+                        subtotal,
+                        usdToKhrRate,
+                        showRiel: showRiel,
+                      )}',
+                    ),
                   ],
                 ),
               ),
@@ -1281,12 +1357,16 @@ class _TicketLine extends StatelessWidget {
   const _TicketLine({
     required this.item,
     required this.quantity,
+    required this.showRiel,
+    required this.usdToKhrRate,
     required this.onDecrease,
     required this.onIncrease,
   });
 
   final BackendTestItem item;
   final int quantity;
+  final bool showRiel;
+  final double usdToKhrRate;
   final VoidCallback onDecrease;
   final VoidCallback onIncrease;
 
@@ -1319,7 +1399,11 @@ class _TicketLine extends StatelessWidget {
               ),
               const SizedBox(height: 3),
               Text(
-                '\$${item.productPrice.toStringAsFixed(2)}',
+                formatDualCurrency(
+                  item.productPrice,
+                  usdToKhrRate,
+                  showRiel: showRiel,
+                ),
                 style: const TextStyle(
                   color: _muted,
                   fontFeatures: [FontFeature.tabularFigures()],
@@ -1591,9 +1675,15 @@ class _CategoryManagerState extends State<_CategoryManager> {
 }
 
 class _OrdersView extends StatelessWidget {
-  const _OrdersView({required this.sales});
+  const _OrdersView({
+    required this.sales,
+    required this.showRiel,
+    required this.usdToKhrRate,
+  });
 
   final List<_Sale> sales;
+  final bool showRiel;
+  final double usdToKhrRate;
 
   @override
   Widget build(BuildContext context) {
@@ -1644,7 +1734,11 @@ class _OrdersView extends StatelessWidget {
                               '${_formatClock(sale.createdAt)}',
                             ),
                             trailing: Text(
-                              '\$${sale.total.toStringAsFixed(2)}',
+                              formatDualCurrency(
+                                sale.total,
+                                usdToKhrRate,
+                                showRiel: showRiel,
+                              ),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
@@ -1665,9 +1759,15 @@ class _OrdersView extends StatelessWidget {
 }
 
 class _ReportsView extends StatelessWidget {
-  const _ReportsView({required this.sales});
+  const _ReportsView({
+    required this.sales,
+    required this.showRiel,
+    required this.usdToKhrRate,
+  });
 
   final List<_Sale> sales;
+  final bool showRiel;
+  final double usdToKhrRate;
 
   @override
   Widget build(BuildContext context) {
@@ -1692,7 +1792,11 @@ class _ReportsView extends StatelessWidget {
             children: [
               _MetricCard(
                 label: 'Net sales',
-                value: '\$${revenue.toStringAsFixed(2)}',
+                value: formatDualCurrency(
+                  revenue,
+                  usdToKhrRate,
+                  showRiel: showRiel,
+                ),
                 icon: Icons.trending_up_rounded,
               ),
               _MetricCard(
@@ -1707,7 +1811,11 @@ class _ReportsView extends StatelessWidget {
               ),
               _MetricCard(
                 label: 'Average order',
-                value: '\$${average.toStringAsFixed(2)}',
+                value: formatDualCurrency(
+                  average,
+                  usdToKhrRate,
+                  showRiel: showRiel,
+                ),
                 icon: Icons.pie_chart_outline_rounded,
               ),
             ],
@@ -1740,6 +1848,10 @@ class _SettingsView extends StatelessWidget {
     required this.errorStatusCode,
     required this.errorElapsed,
     required this.onTest,
+    required this.showRiel,
+    required this.usdToKhrRate,
+    required this.onShowRielChanged,
+    required this.onRateChanged,
   });
 
   final String backendUrl;
@@ -1749,6 +1861,10 @@ class _SettingsView extends StatelessWidget {
   final int? errorStatusCode;
   final Duration? errorElapsed;
   final VoidCallback? onTest;
+  final bool showRiel;
+  final double usdToKhrRate;
+  final ValueChanged<bool> onShowRielChanged;
+  final ValueChanged<String> onRateChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -1762,6 +1878,38 @@ class _SettingsView extends StatelessWidget {
             message: 'Check the connection used for product data.',
           ),
           const SizedBox(height: 20),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Show Khmer riel'),
+                    subtitle: const Text(
+                      'Display KHR beside every existing USD price.',
+                    ),
+                    value: showRiel,
+                    onChanged: onShowRielChanged,
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    initialValue: usdToKhrRate.toStringAsFixed(0),
+                    keyboardType: TextInputType.number,
+                    enabled: showRiel,
+                    onChanged: onRateChanged,
+                    decoration: const InputDecoration(
+                      labelText: 'Exchange rate',
+                      prefixText: '1 USD = ',
+                      suffixText: 'KHR',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           ConnectionStatusCard(
             backendUrl: backendUrl,
             testing: testing,
@@ -1974,11 +2122,15 @@ class _AmountRow extends StatelessWidget {
   const _AmountRow({
     required this.label,
     required this.value,
+    required this.showRiel,
+    required this.usdToKhrRate,
     this.total = false,
   });
 
   final String label;
   final double value;
+  final bool showRiel;
+  final double usdToKhrRate;
   final bool total;
 
   @override
@@ -1995,7 +2147,11 @@ class _AmountRow extends StatelessWidget {
         ),
         const Spacer(),
         Text(
-          '\$${value.toStringAsFixed(2)}',
+          formatDualCurrency(
+            value,
+            usdToKhrRate,
+            showRiel: showRiel,
+          ),
           style: TextStyle(
             color: _ink,
             fontSize: total ? 22 : 14,
