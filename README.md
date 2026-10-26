@@ -1,4 +1,16 @@
-# Counter POS
+# Counter POS ☕ 🛒
+
+<p align="center">
+  <sub>Developed by <strong>Seng Chhunsour</strong></sub>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Chhunsour"><img src="https://img.shields.io/badge/Author-Seng%20Chhunsour-FF5A1F?style=flat-square&logo=github&logoColor=white" alt="Author: Seng Chhunsour" /></a>
+  <img src="https://img.shields.io/badge/Framework-Flutter-02569B?style=flat-square&logo=flutter&logoColor=white" alt="Flutter" />
+  <img src="https://img.shields.io/badge/Platform-Web%20%7C%20macOS%20%7C%20iOS%20%7C%20Android-blue?style=flat-square" alt="Multi-Platform" />
+  <img src="https://img.shields.io/badge/Backend-Supabase%20PostgreSQL-3ECF8E?style=flat-square&logo=supabase&logoColor=white" alt="Supabase" />
+  <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License" />
+</p>
 
 A responsive Flutter cashier workspace with a searchable product catalog,
 cart, payment methods, session orders, reports, product management, and
@@ -96,3 +108,17 @@ Requests send `Content-Type: application/json`, `apikey: ANON_KEY`, and
 `Authorization: Bearer ANON_KEY`. Requests time out after 12 seconds. The UI
 shows exact HTTP status codes and backend error messages; debug logs mask the
 API key.
+
+---
+
+## 👤 Author & Developer
+
+**Developed by Seng Chhunsour**
+- **GitHub:** [@Chhunsour](https://github.com/Chhunsour)
+- **Repository:** [https://github.com/Chhunsour/counter-pos](https://github.com/Chhunsour/counter-pos)
+
+---
+
+## 📄 License
+
+Personal and open-source project. Developed by Seng Chhunsour. All rights reserved.
